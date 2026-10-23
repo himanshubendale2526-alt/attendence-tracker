@@ -1,16 +1,16 @@
-<!doctype html><html lang="mr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#070b1a"><title>Student • AttendX</title><link rel="stylesheet" href="style.css">
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#070b1a"><title>Student • AttendX</title><link rel="stylesheet" href="style.css">
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script></head><body>
 <header><a class="logo" href="/">📍 AttendX</a><button class="ghost hidden" id="logout" style="margin:0">Logout</button></header>
 <main>
 <section id="login" class="card">
   <h2>🎓 Student Login</h2>
   <label>Room code</label><input id="code" maxlength="6" autocapitalize="characters" placeholder="A1B2C3">
-  <button id="next">Pudhe</button>
+  <button id="next">Next</button>
   <div id="step2" class="hidden">
     <p class="mut">Room: <b id="rn"></b></p>
     <label>Roll number</label><select id="roll"></select>
-    <label>Nav</label><input id="name" placeholder="Pahilyanda nav taka">
-    <label>Password (pahilyanda swatahcha set kara)</label><input id="pw" type="password">
+    <label>Name</label><input id="name" placeholder="Enter your name (first time only)">
+    <label>Password (set your own on first login)</label><input id="pw" type="password">
     <button id="dologin" class="ok" style="width:100%">Login</button>
   </div>
   <div id="lmsg"></div>
@@ -18,10 +18,10 @@
 
 <section id="home" class="hidden">
   <div class="card"><h2 id="hello"></h2><div class="mut" id="roomname"></div>
-    <button id="scan" style="width:100%">📷 QR Scan kara</button>
+    <button id="scan" style="width:100%">📷 Scan QR</button>
     <div id="reader" class="hidden"></div>
   </div>
-  <div id="confirm" class="card hidden"><h3>✅ QR milala!</h3><p class="mut">Class madhech asa, mag Submit daba. Location check hoil.</p>
+  <div id="confirm" class="card hidden"><h3>✅ QR detected!</h3><p class="mut">Make sure you are in the classroom, then tap Submit. Your location will be verified.</p>
     <button id="submit" class="ok" style="width:100%">✅ Submit Attendance</button>
   </div>
   <div id="hmsg"></div>
@@ -76,14 +76,14 @@ $('#scan').onclick=async()=>{
       let t=txt;try{t=new URL(txt).searchParams.get('t')||txt}catch{}
       pend=t;await stopScan();showConfirm();
     },()=>{});
-  }catch(e){$('#reader').classList.add('hidden');msg('#hmsg','Camera open hot nahi, permission dya: '+e)}
+  }catch(e){$('#reader').classList.add('hidden');msg('#hmsg','Could not open the camera, please allow permission: '+e)}
 };
 $('#submit').onclick=async()=>{
-  const b=$('#submit');b.disabled=true;b.textContent='📡 Location check hot ahe...';
+  const b=$('#submit');b.disabled=true;b.textContent='📡 Checking location...';
   try{
-    const c=await new Promise((ok,no)=>navigator.geolocation.getCurrentPosition(p=>ok(p.coords),()=>no(new Error('Location permission dya ani GPS on kara')),{enableHighAccuracy:true,timeout:15000,maximumAge:0}));
+    const c=await new Promise((ok,no)=>navigator.geolocation.getCurrentPosition(p=>ok(p.coords),()=>no(new Error('Please allow location access and turn on GPS')),{enableHighAccuracy:true,timeout:15000,maximumAge:0}));
     const d=await api('/attend',{token:pend,lat:c.latitude,lng:c.longitude,accuracy:c.accuracy});
-    msg('#hmsg',`🎉 Attendance lagli! Teacher pasun ${d.distance} m`,'ok');pend=null;$('#confirm').classList.add('hidden');
+    msg('#hmsg',`🎉 Attendance marked! You are ${d.distance} m from the teacher`,'ok');pend=null;$('#confirm').classList.add('hidden');
   }catch(e){msg('#hmsg','❌ '+e.message)}
   b.disabled=false;b.textContent='✅ Submit Attendance';
 };

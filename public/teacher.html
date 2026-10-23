@@ -1,48 +1,49 @@
-<!doctype html><html lang="mr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#070b1a"><title>Teacher • AttendX</title><link rel="stylesheet" href="style.css"></head><body>
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#070b1a"><title>Teacher • AttendX</title><link rel="stylesheet" href="style.css"></head><body>
 <header><a class="logo" href="/">📍 AttendX</a><button class="ghost hidden" id="logout" style="margin:0">Logout</button></header>
 <main>
 <section id="auth" class="card hidden">
   <h2>👩‍🏫 Teacher Login / Register</h2>
   <label>Username</label><input id="u" autocapitalize="none">
-  <label>Password (6+)</label><input id="p" type="password">
-  <label>Admin key (jar set kela asel tarach)</label><input id="k" type="password">
+  <label>Password (6+ characters)</label><input id="p" type="password">
+  <label>Admin key (required for Register only)</label><input id="k" type="password">
   <div class="row"><button id="bl">Login</button><button id="br" class="ghost">Register</button></div>
   <div id="amsg"></div>
 </section>
 
 <section id="dash" class="hidden">
-  <div class="card"><h2>➕ Navin Lecture Room</h2>
+  <div class="card"><h2>➕ New Lecture Room</h2>
     <label>Subject / Room name</label><input id="rname" placeholder="Maths – TY CS">
-    <div class="row"><div><label>Roll limit (kiti students)</label><input id="rlimit" type="number" value="60" min="1" max="500"></div>
-    <div><label>Radius (meter)</label><input id="rrad" type="number" value="100" min="20" max="2000"></div></div>
+    <div class="row"><div><label>Roll limit (number of students)</label><input id="rlimit" type="number" value="60" min="1" max="500"></div>
+    <div><label>Radius (meters)</label><input id="rrad" type="number" value="100" min="20" max="2000"></div></div>
     <div class="row"><div><label>Lecture start</label><input id="rstart" type="datetime-local"></div>
     <div><label>Lecture end</label><input id="rend" type="datetime-local"></div></div>
-    <button id="getloc" class="ghost">📍 Majhi location ghya</button> <span id="locinfo" class="mut"></span>
-    <button id="create" style="display:block;width:100%">Room banva</button><div id="cmsg"></div>
+    <button id="getloc" class="ghost">📍 Get my location</button> <span id="locinfo" class="mut"></span>
+    <button id="create" style="display:block;width:100%">Create Room</button><div id="cmsg"></div>
   </div>
-  <h3>Majhe Rooms</h3><div id="rooms"></div>
+  <h3>My Rooms</h3><div id="rooms"></div>
 </section>
 
 <section id="roomv" class="hidden">
-  <button id="back" class="ghost">← Maage</button>
+  <button id="back" class="ghost">← Back</button>
   <div class="card"><h2 id="rtitle"></h2>
     <div class="mut">Room code</div><div class="code" id="rcode"></div>
     <div class="mut" id="rinfo"></div>
-    <p>Student link: <a id="jlink" style="color:#a5b4fc;word-break:break-all"></a></p>
-    <div id="track" class="mut">📡 Location shodhat ahe... (GPS on theva ani he page open theva)</div>
+    <p>Student link: <a id="jlink" style="word-break:break-all"></a></p>
+    <div id="track" class="mut">📡 Getting location... (turn on GPS and keep this page open)</div>
+    <div id="accwarn"></div>
     <div>Enrolled students: <b id="enrolled">0</b></div>
   </div>
-  <div class="card"><h3>📷 Attendance Start</h3>
-    <label>QR kiti minute valid?</label>
+  <div class="card"><h3>📷 Start Attendance</h3>
+    <label>QR valid for (minutes)</label>
     <select id="mins"><option>1</option><option>2</option><option selected>5</option><option>10</option><option>15</option></select>
     <button id="start" class="ok">▶ Start Attendance</button><div id="smsg"></div>
   </div>
   <div id="sesspanel" class="card hidden">
     <div id="left" class="code" style="font-size:1.2rem"></div>
-    <div id="qrbox"><img id="qrimg" class="big" alt="QR"><div class="mut" style="text-align:center">QR dar minute badalto, screenshot chalnar nahi 😉</div></div>
+    <div id="qrbox"><img id="qrimg" class="big" alt="QR"><div class="mut" style="text-align:center">The QR refreshes every minute, so screenshots will not work 😉</div></div>
     <h3 id="pcount" style="margin-top:16px"></h3><div class="grid" id="grid"></div><div id="plist" style="margin-top:12px"></div>
   </div>
-  <div class="card"><h3>🗂 Aadhichya sessions</h3><div id="sess"></div><button id="export" class="ghost">⬇ CSV Export</button></div>
+  <div class="card"><h3>🗂 Previous sessions</h3><div id="sess"></div><button id="export" class="ghost">⬇ Export CSV</button></div>
 </section>
 </main>
 <script>
@@ -57,7 +58,7 @@ async function api(p,body){
   const d=await r.json().catch(()=>({}));
   if(!r.ok)throw new Error(d.error||'Error');return d;
 }
-const getPos=()=>new Promise((ok,no)=>navigator.geolocation.getCurrentPosition(p=>ok(p.coords),()=>no(new Error('Location permission dya (GPS on kara)')),{enableHighAccuracy:true,timeout:15000,maximumAge:0}));
+const getPos=()=>new Promise((ok,no)=>navigator.geolocation.getCurrentPosition(p=>ok(p.coords),()=>no(new Error('Please allow location access (turn on GPS)')),{enableHighAccuracy:true,timeout:15000,maximumAge:0}));
 const loc=d=>new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,16);
 $('#rstart').value=loc(new Date());$('#rend').value=loc(new Date(Date.now()+3600000));
 
@@ -74,18 +75,18 @@ async function init(){
 }
 async function loadRooms(){
   const list=await api('/rooms');
-  $('#rooms').innerHTML=list.length?list.map(r=>`<div class="card row" style="align-items:center"><div><b>${esc(r.name)}</b><div class="mut">${fmt(r.start_at)} • code <b>${r.code}</b></div></div><button data-id="${r.id}" style="margin:0">Open</button></div>`).join(''):'<div class="mut">Ajun room nahi.</div>';
+  $('#rooms').innerHTML=list.length?list.map(r=>`<div class="card row" style="align-items:center"><div><b>${esc(r.name)}</b><div class="mut">${fmt(r.start_at)} • code <b>${r.code}</b></div></div><button data-id="${r.id}" style="margin:0">Open</button></div>`).join(''):'<div class="mut">No rooms yet.</div>';
 }
 $('#rooms').onclick=e=>{const id=e.target.dataset.id;if(id)openRoom(id)};
 
 $('#getloc').onclick=async()=>{
-  $('#locinfo').textContent='⏳ ...';
-  try{const c=await getPos();newLoc={lat:c.latitude,lng:c.longitude,acc:c.accuracy};$('#locinfo').textContent=`✅ Location mili (±${Math.round(c.accuracy)} m)`}
+  $('#locinfo').textContent='⏳ Locating...';
+  try{const c=await getPos();newLoc={lat:c.latitude,lng:c.longitude,acc:c.accuracy};$('#locinfo').textContent=`✅ Location captured (±${Math.round(c.accuracy)} m)`}
   catch(e){$('#locinfo').textContent='❌ '+e.message}
 };
 $('#create').onclick=async()=>{
   try{
-    if(!newLoc)throw new Error('Aadhi "Majhi location ghya" button daba');
+    if(!newLoc)throw new Error('Please tap "Get my location" first');
     const d=await api('/rooms',{name:$('#rname').value,roll_limit:+$('#rlimit').value,radius:+$('#rrad').value,start_at:new Date($('#rstart').value).getTime(),end_at:new Date($('#rend').value).getTime(),...newLoc});
     msg('#cmsg','');openRoom(d.id);
   }catch(e){msg('#cmsg',e.message)}
@@ -103,17 +104,19 @@ async function openRoom(id){
   $('#enrolled').textContent=d.students.length;renderSessions(d.sessions);startTracking();
 }
 function startTracking(){
-  if(!navigator.geolocation){$('#track').textContent='❌ Geolocation support nahi';return}
-  watch=navigator.geolocation.watchPosition(p=>{last=p.coords;if(!sent)push()},()=>{$('#track').textContent='❌ Location band ahe, permission dya'},{enableHighAccuracy:true});
+  if(!navigator.geolocation){$('#track').textContent='❌ Geolocation is not supported';return}
+  watch=navigator.geolocation.watchPosition(p=>{last=p.coords;if(!sent)push()},()=>{$('#track').textContent='❌ Location is off, please allow permission'},{enableHighAccuracy:true});
   timers.push(setInterval(push,15000));
 }
 async function push(){
   if(!last||!room)return;
   try{await api(`/rooms/${room.id}/location`,{lat:last.latitude,lng:last.longitude,acc:last.accuracy});sent=true;
-    $('#track').textContent=`🟢 Live location ON (±${Math.round(last.accuracy)} m) • ${new Date().toLocaleTimeString()}`}catch{}
+    $('#track').textContent=`🟢 Live location ON (±${Math.round(last.accuracy)} m) • ${new Date().toLocaleTimeString()}`;
+    $('#accwarn').innerHTML=last.accuracy>150?'<div class="msg err">⚠ Low GPS accuracy (this device is likely using Wi-Fi/IP location). Open this dashboard on your phone for best results.</div>':'';
+  }catch{}
 }
 function renderSessions(list){
-  $('#sess').innerHTML=list.length?list.map(s=>`<div class="row" style="align-items:center;margin-bottom:8px"><div>${fmt(s.created_at)} • <b>${s.present}</b> present</div><button class="ghost" data-sid="${s.id}" data-exp="${s.expires_at}" style="margin:0">Pahaa</button></div>`).join(''):'<div class="mut">Ajun session nahi.</div>';
+  $('#sess').innerHTML=list.length?list.map(s=>`<div class="row" style="align-items:center;margin-bottom:8px"><div>${fmt(s.created_at)} • <b>${s.present}</b> present</div><button class="ghost" data-sid="${s.id}" data-exp="${s.expires_at}" style="margin:0">View</button></div>`).join(''):'<div class="mut">No sessions yet.</div>';
 }
 $('#sess').onclick=e=>{const b=e.target.closest('button');if(b)watchSession(+b.dataset.sid,+b.dataset.exp,false)};
 async function refreshSessions(){const d=await api('/rooms/'+room.id);renderSessions(d.sessions);$('#enrolled').textContent=d.students.length}
@@ -126,7 +129,7 @@ function watchSession(sid,exp,live){
   clearSess();$('#sesspanel').classList.remove('hidden');$('#qrbox').classList.toggle('hidden',!live);
   const tick=async()=>{
     const left=Math.max(0,Math.round((exp-Date.now())/1000));
-    $('#left').textContent=live?(left>0?`⏳ ${Math.floor(left/60)}:${String(left%60).padStart(2,'0')} baki`:'⛔ Session sampla'):'🗂 Junya session cha result';
+    $('#left').textContent=live?(left>0?`⏳ ${Math.floor(left/60)}:${String(left%60).padStart(2,'0')} left`:'⛔ Session ended'):'🗂 Past session result';
     try{const a=await api(`/sessions/${sid}/attendance`);renderRoster(a.rows)}catch{}
   };
   const qr=async()=>{if(Date.now()>exp){$('#qrbox').classList.add('hidden');return}try{const q=await api(`/sessions/${sid}/qr`);$('#qrimg').src=q.qr}catch{}};
