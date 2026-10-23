@@ -1,0 +1,38 @@
+:root{--bg:#070b1a;--card:rgba(255,255,255,.07);--line:rgba(255,255,255,.12);--tx:#f1f5f9;--mut:#94a3b8;--pri:#7c3aed;--pri2:#06b6d4;--ok:#22c55e;--err:#ef4444}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html{scroll-behavior:smooth}
+body{margin:0;font-family:'Segoe UI',system-ui,-apple-system,sans-serif;color:var(--tx);min-height:100vh;
+background:radial-gradient(circle at 15% 0,#4c1d95 0,transparent 45%),radial-gradient(circle at 90% 20%,#0e7490 0,transparent 40%),var(--bg);background-attachment:fixed}
+header{display:flex;justify-content:space-between;align-items:center;padding:14px 18px;position:sticky;top:0;z-index:10;backdrop-filter:blur(14px);background:rgba(7,11,26,.6);border-bottom:1px solid var(--line)}
+.logo{font-weight:800;font-size:1.25rem;text-decoration:none;background:linear-gradient(90deg,#c4b5fd,#67e8f9);-webkit-background-clip:text;background-clip:text;color:transparent}
+main{max-width:640px;margin:0 auto;padding:10px 14px 70px}
+.card{background:var(--card);border:1px solid var(--line);backdrop-filter:blur(14px);border-radius:22px;padding:20px;margin:14px 0;box-shadow:0 10px 40px #0006;animation:up .35s ease both}
+@keyframes up{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+h1,h2,h3{margin-top:0;letter-spacing:-.3px}
+label{display:block;margin:14px 0 6px;color:var(--mut);font-size:.82rem;font-weight:600;text-transform:uppercase;letter-spacing:.5px}
+input,select{width:100%;padding:14px 14px;border-radius:14px;border:1px solid var(--line);background:rgba(0,0,0,.35);color:var(--tx);font-size:16px;outline:none;transition:.2s}
+input:focus,select:focus{border-color:var(--pri2);box-shadow:0 0 0 3px #06b6d433}
+button{padding:14px 20px;border:0;border-radius:14px;background:linear-gradient(135deg,var(--pri),var(--pri2));color:#fff;font-size:1rem;font-weight:700;cursor:pointer;margin-top:14px;transition:transform .15s,box-shadow .2s;box-shadow:0 6px 20px #7c3aed55}
+button:active{transform:scale(.97)}
+button:disabled{opacity:.6}
+button.ghost{background:rgba(255,255,255,.06);border:1px solid var(--line);box-shadow:none}
+button.ok{background:linear-gradient(135deg,#16a34a,#22c55e);box-shadow:0 6px 20px #22c55e44}
+.row{display:flex;gap:10px;flex-wrap:wrap}.row>*{flex:1;min-width:140px}
+.hidden{display:none!important}
+.msg{padding:12px 14px;border-radius:14px;margin-top:14px;font-weight:600;animation:up .3s}
+.msg.err{background:#7f1d1d99;border:1px solid #ef444488}
+.msg.ok{background:#14532d99;border:1px solid #22c55e88}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(52px,1fr));gap:8px;margin-top:10px}
+.chip{padding:12px 0;text-align:center;border-radius:12px;background:rgba(0,0,0,.35);border:1px solid var(--line);color:var(--mut);font-weight:800;transition:.3s}
+.chip.on{background:linear-gradient(135deg,#16a34a,#4ade80);color:#052e16;border-color:transparent;transform:scale(1.05);box-shadow:0 0 16px #22c55e66}
+.big{display:block;margin:14px auto;max-width:320px;width:100%;background:#fff;border-radius:18px;padding:12px;box-shadow:0 0 40px #7c3aed88}
+.code{font-size:1.8rem;letter-spacing:6px;font-weight:900;background:linear-gradient(90deg,#c4b5fd,#67e8f9);-webkit-background-clip:text;background-clip:text;color:transparent}
+.mut{color:var(--mut)}
+.hero{text-align:center;padding:60px 0 20px}
+.hero h1{font-size:2.8rem;margin-bottom:6px;background:linear-gradient(90deg,#c4b5fd,#67e8f9);-webkit-background-clip:text;background-clip:text;color:transparent}
+.hero a{display:block;color:#fff;padding:20px;border-radius:20px;margin:16px auto;max-width:340px;text-decoration:none;font-weight:800;font-size:1.2rem;background:linear-gradient(135deg,var(--pri),#a855f7);box-shadow:0 10px 30px #7c3aed55;transition:.2s}
+.hero a:active{transform:scale(.97)}
+.hero a.s{background:linear-gradient(135deg,#0891b2,#06b6d4);box-shadow:0 10px 30px #06b6d455}
+#reader{border-radius:18px;overflow:hidden;margin-top:14px;border:2px solid var(--pri2)}
+a{color:#a5b4fc}
+@media(max-width:480px){main{padding:6px 10px 70px}.card{padding:16px;border-radius:18px}button{width:100%}.row>button{width:auto}}

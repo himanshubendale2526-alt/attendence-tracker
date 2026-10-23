@@ -1,0 +1,149 @@
+<!doctype html><html lang="mr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#070b1a"><title>Teacher • AttendX</title><link rel="stylesheet" href="style.css"></head><body>
+<header><a class="logo" href="/">📍 AttendX</a><button class="ghost hidden" id="logout" style="margin:0">Logout</button></header>
+<main>
+<section id="auth" class="card hidden">
+  <h2>👩‍🏫 Teacher Login / Register</h2>
+  <label>Username</label><input id="u" autocapitalize="none">
+  <label>Password (6+)</label><input id="p" type="password">
+  <label>Admin key (jar set kela asel tarach)</label><input id="k" type="password">
+  <div class="row"><button id="bl">Login</button><button id="br" class="ghost">Register</button></div>
+  <div id="amsg"></div>
+</section>
+
+<section id="dash" class="hidden">
+  <div class="card"><h2>➕ Navin Lecture Room</h2>
+    <label>Subject / Room name</label><input id="rname" placeholder="Maths – TY CS">
+    <div class="row"><div><label>Roll limit (kiti students)</label><input id="rlimit" type="number" value="60" min="1" max="500"></div>
+    <div><label>Radius (meter)</label><input id="rrad" type="number" value="100" min="20" max="2000"></div></div>
+    <div class="row"><div><label>Lecture start</label><input id="rstart" type="datetime-local"></div>
+    <div><label>Lecture end</label><input id="rend" type="datetime-local"></div></div>
+    <button id="getloc" class="ghost">📍 Majhi location ghya</button> <span id="locinfo" class="mut"></span>
+    <button id="create" style="display:block;width:100%">Room banva</button><div id="cmsg"></div>
+  </div>
+  <h3>Majhe Rooms</h3><div id="rooms"></div>
+</section>
+
+<section id="roomv" class="hidden">
+  <button id="back" class="ghost">← Maage</button>
+  <div class="card"><h2 id="rtitle"></h2>
+    <div class="mut">Room code</div><div class="code" id="rcode"></div>
+    <div class="mut" id="rinfo"></div>
+    <p>Student link: <a id="jlink" style="color:#a5b4fc;word-break:break-all"></a></p>
+    <div id="track" class="mut">📡 Location shodhat ahe... (GPS on theva ani he page open theva)</div>
+    <div>Enrolled students: <b id="enrolled">0</b></div>
+  </div>
+  <div class="card"><h3>📷 Attendance Start</h3>
+    <label>QR kiti minute valid?</label>
+    <select id="mins"><option>1</option><option>2</option><option selected>5</option><option>10</option><option>15</option></select>
+    <button id="start" class="ok">▶ Start Attendance</button><div id="smsg"></div>
+  </div>
+  <div id="sesspanel" class="card hidden">
+    <div id="left" class="code" style="font-size:1.2rem"></div>
+    <div id="qrbox"><img id="qrimg" class="big" alt="QR"><div class="mut" style="text-align:center">QR dar minute badalto, screenshot chalnar nahi 😉</div></div>
+    <h3 id="pcount" style="margin-top:16px"></h3><div class="grid" id="grid"></div><div id="plist" style="margin-top:12px"></div>
+  </div>
+  <div class="card"><h3>🗂 Aadhichya sessions</h3><div id="sess"></div><button id="export" class="ghost">⬇ CSV Export</button></div>
+</section>
+</main>
+<script>
+const $=s=>document.querySelector(s);
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+let token=localStorage.getItem('tt'),room=null,timers=[],sessTimers=[],watch=null,last=null,newLoc=null,sent=false;
+const show=id=>['auth','dash','roomv'].forEach(x=>$('#'+x).classList.toggle('hidden',x!==id));
+const msg=(el,t,c='err')=>{$(el).innerHTML=t?`<div class="msg ${c}">${esc(t)}</div>`:''};
+const fmt=t=>new Date(t).toLocaleString('en-IN',{dateStyle:'medium',timeStyle:'short'});
+async function api(p,body){
+  const r=await fetch('/api'+p,{method:body?'POST':'GET',headers:{'Content-Type':'application/json',...(token?{Authorization:'Bearer '+token}:{})},body:body?JSON.stringify(body):undefined});
+  const d=await r.json().catch(()=>({}));
+  if(!r.ok)throw new Error(d.error||'Error');return d;
+}
+const getPos=()=>new Promise((ok,no)=>navigator.geolocation.getCurrentPosition(p=>ok(p.coords),()=>no(new Error('Location permission dya (GPS on kara)')),{enableHighAccuracy:true,timeout:15000,maximumAge:0}));
+const loc=d=>new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,16);
+$('#rstart').value=loc(new Date());$('#rend').value=loc(new Date(Date.now()+3600000));
+
+async function doAuth(kind){
+  try{const d=await api('/teacher/'+kind,{username:$('#u').value,password:$('#p').value,key:$('#k').value});
+    token=d.token;localStorage.setItem('tt',token);init();}catch(e){msg('#amsg',e.message)}
+}
+$('#bl').onclick=()=>doAuth('login');$('#br').onclick=()=>doAuth('register');
+$('#logout').onclick=()=>{localStorage.removeItem('tt');token=null;clearAll();init()};
+
+async function init(){
+  if(!token){show('auth');$('#logout').classList.add('hidden');return}
+  try{await loadRooms();show('dash');$('#logout').classList.remove('hidden')}catch{token=null;show('auth')}
+}
+async function loadRooms(){
+  const list=await api('/rooms');
+  $('#rooms').innerHTML=list.length?list.map(r=>`<div class="card row" style="align-items:center"><div><b>${esc(r.name)}</b><div class="mut">${fmt(r.start_at)} • code <b>${r.code}</b></div></div><button data-id="${r.id}" style="margin:0">Open</button></div>`).join(''):'<div class="mut">Ajun room nahi.</div>';
+}
+$('#rooms').onclick=e=>{const id=e.target.dataset.id;if(id)openRoom(id)};
+
+$('#getloc').onclick=async()=>{
+  $('#locinfo').textContent='⏳ ...';
+  try{const c=await getPos();newLoc={lat:c.latitude,lng:c.longitude,acc:c.accuracy};$('#locinfo').textContent=`✅ Location mili (±${Math.round(c.accuracy)} m)`}
+  catch(e){$('#locinfo').textContent='❌ '+e.message}
+};
+$('#create').onclick=async()=>{
+  try{
+    if(!newLoc)throw new Error('Aadhi "Majhi location ghya" button daba');
+    const d=await api('/rooms',{name:$('#rname').value,roll_limit:+$('#rlimit').value,radius:+$('#rrad').value,start_at:new Date($('#rstart').value).getTime(),end_at:new Date($('#rend').value).getTime(),...newLoc});
+    msg('#cmsg','');openRoom(d.id);
+  }catch(e){msg('#cmsg',e.message)}
+};
+
+function clearSess(){sessTimers.forEach(clearInterval);sessTimers=[]}
+function clearAll(){timers.forEach(clearInterval);timers=[];clearSess();if(watch!=null)navigator.geolocation.clearWatch(watch);watch=null;last=null;sent=false}
+
+async function openRoom(id){
+  clearAll();
+  const d=await api('/rooms/'+id);room=d.room;show('roomv');$('#sesspanel').classList.add('hidden');
+  $('#rtitle').textContent=room.name;$('#rcode').textContent=room.code;
+  $('#rinfo').textContent=`${fmt(room.start_at)} → ${fmt(room.end_at)} • Roll 1–${room.roll_limit} • Radius ${room.radius} m`;
+  const link=`${location.origin}/student.html?code=${room.code}`;$('#jlink').textContent=link;$('#jlink').href=link;
+  $('#enrolled').textContent=d.students.length;renderSessions(d.sessions);startTracking();
+}
+function startTracking(){
+  if(!navigator.geolocation){$('#track').textContent='❌ Geolocation support nahi';return}
+  watch=navigator.geolocation.watchPosition(p=>{last=p.coords;if(!sent)push()},()=>{$('#track').textContent='❌ Location band ahe, permission dya'},{enableHighAccuracy:true});
+  timers.push(setInterval(push,15000));
+}
+async function push(){
+  if(!last||!room)return;
+  try{await api(`/rooms/${room.id}/location`,{lat:last.latitude,lng:last.longitude,acc:last.accuracy});sent=true;
+    $('#track').textContent=`🟢 Live location ON (±${Math.round(last.accuracy)} m) • ${new Date().toLocaleTimeString()}`}catch{}
+}
+function renderSessions(list){
+  $('#sess').innerHTML=list.length?list.map(s=>`<div class="row" style="align-items:center;margin-bottom:8px"><div>${fmt(s.created_at)} • <b>${s.present}</b> present</div><button class="ghost" data-sid="${s.id}" data-exp="${s.expires_at}" style="margin:0">Pahaa</button></div>`).join(''):'<div class="mut">Ajun session nahi.</div>';
+}
+$('#sess').onclick=e=>{const b=e.target.closest('button');if(b)watchSession(+b.dataset.sid,+b.dataset.exp,false)};
+async function refreshSessions(){const d=await api('/rooms/'+room.id);renderSessions(d.sessions);$('#enrolled').textContent=d.students.length}
+
+$('#start').onclick=async()=>{
+  try{const s=await api(`/rooms/${room.id}/session`,{minutes:+$('#mins').value});msg('#smsg','');watchSession(s.id,s.expires_at,true);refreshSessions()}
+  catch(e){msg('#smsg',e.message)}
+};
+function watchSession(sid,exp,live){
+  clearSess();$('#sesspanel').classList.remove('hidden');$('#qrbox').classList.toggle('hidden',!live);
+  const tick=async()=>{
+    const left=Math.max(0,Math.round((exp-Date.now())/1000));
+    $('#left').textContent=live?(left>0?`⏳ ${Math.floor(left/60)}:${String(left%60).padStart(2,'0')} baki`:'⛔ Session sampla'):'🗂 Junya session cha result';
+    try{const a=await api(`/sessions/${sid}/attendance`);renderRoster(a.rows)}catch{}
+  };
+  const qr=async()=>{if(Date.now()>exp){$('#qrbox').classList.add('hidden');return}try{const q=await api(`/sessions/${sid}/qr`);$('#qrimg').src=q.qr}catch{}};
+  tick();if(live)qr();
+  sessTimers=[setInterval(tick,2000)];if(live)sessTimers.push(setInterval(qr,20000));
+  $('#sesspanel').scrollIntoView({behavior:'smooth'});
+}
+function renderRoster(rows){
+  const m=new Map(rows.map(r=>[r.roll,r]));let h='';
+  for(let i=1;i<=room.roll_limit;i++){const r=m.get(i);h+=`<div class="chip ${r?'on':''}" title="${r?esc(r.name):''}">${i}</div>`}
+  $('#grid').innerHTML=h;$('#pcount').textContent=`${rows.length} / ${room.roll_limit} present`;
+  $('#plist').innerHTML=rows.map(r=>`<div>✅ ${r.roll} – ${esc(r.name)} <span class="mut">(${r.distance} m)</span></div>`).join('');
+}
+$('#export').onclick=async()=>{
+  const r=await fetch(`/api/rooms/${room.id}/export`,{headers:{Authorization:'Bearer '+token}});
+  const a=document.createElement('a');a.href=URL.createObjectURL(await r.blob());a.download=room.code+'.csv';a.click();
+};
+$('#back').onclick=()=>{clearAll();room=null;loadRooms();show('dash')};
+init();
+</script></body></html>

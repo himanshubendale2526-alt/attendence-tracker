@@ -1,0 +1,91 @@
+<!doctype html><html lang="mr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#070b1a"><title>Student • AttendX</title><link rel="stylesheet" href="style.css">
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script></head><body>
+<header><a class="logo" href="/">📍 AttendX</a><button class="ghost hidden" id="logout" style="margin:0">Logout</button></header>
+<main>
+<section id="login" class="card">
+  <h2>🎓 Student Login</h2>
+  <label>Room code</label><input id="code" maxlength="6" autocapitalize="characters" placeholder="A1B2C3">
+  <button id="next">Pudhe</button>
+  <div id="step2" class="hidden">
+    <p class="mut">Room: <b id="rn"></b></p>
+    <label>Roll number</label><select id="roll"></select>
+    <label>Nav</label><input id="name" placeholder="Pahilyanda nav taka">
+    <label>Password (pahilyanda swatahcha set kara)</label><input id="pw" type="password">
+    <button id="dologin" class="ok" style="width:100%">Login</button>
+  </div>
+  <div id="lmsg"></div>
+</section>
+
+<section id="home" class="hidden">
+  <div class="card"><h2 id="hello"></h2><div class="mut" id="roomname"></div>
+    <button id="scan" style="width:100%">📷 QR Scan kara</button>
+    <div id="reader" class="hidden"></div>
+  </div>
+  <div id="confirm" class="card hidden"><h3>✅ QR milala!</h3><p class="mut">Class madhech asa, mag Submit daba. Location check hoil.</p>
+    <button id="submit" class="ok" style="width:100%">✅ Submit Attendance</button>
+  </div>
+  <div id="hmsg"></div>
+</section>
+</main>
+<script>
+const $=s=>document.querySelector(s);
+const q=new URLSearchParams(location.search);
+let tk=localStorage.getItem('st'),me=JSON.parse(localStorage.getItem('sme')||'null'),pend=q.get('t'),scanner=null;
+const urlCode=(q.get('code')||'').toUpperCase();
+if(me&&urlCode&&me.code!==urlCode){tk=null;me=null;localStorage.removeItem('st');localStorage.removeItem('sme')}
+if(pend||urlCode)history.replaceState({},'','/student.html');
+const msg=(el,t,c='err')=>{$(el).innerHTML=t?`<div class="msg ${c}"></div>`:'';if(t)$(el).firstChild.textContent=t};
+async function api(p,body){
+  const r=await fetch('/api'+p,{method:body?'POST':'GET',headers:{'Content-Type':'application/json',...(tk?{Authorization:'Bearer '+tk}:{})},body:body?JSON.stringify(body):undefined});
+  const d=await r.json().catch(()=>({}));
+  if(!r.ok)throw new Error(d.error||'Error');return d;
+}
+$('#code').value=urlCode||(me&&me.code)||'';
+
+$('#next').onclick=async()=>{
+  try{
+    const r=await api('/room/'+$('#code').value.trim().toUpperCase());
+    $('#rn').textContent=r.name;
+    $('#roll').innerHTML=Array.from({length:r.roll_limit},(_,i)=>{const n=i+1;return `<option value="${n}">${n}${r.taken.includes(n)?' (registered)':''}</option>`}).join('');
+    if(me)$('#roll').value=me.roll;
+    $('#step2').classList.remove('hidden');msg('#lmsg','');
+  }catch(e){msg('#lmsg',e.message)}
+};
+$('#dologin').onclick=async()=>{
+  try{
+    const code=$('#code').value.trim().toUpperCase();
+    const d=await api('/student/login',{code,roll:+$('#roll').value,name:$('#name').value,password:$('#pw').value});
+    tk=d.token;me={code,roll:d.roll,name:d.name,room:d.room};
+    localStorage.setItem('st',tk);localStorage.setItem('sme',JSON.stringify(me));home();
+  }catch(e){msg('#lmsg',e.message)}
+};
+function home(){
+  if(!tk||!me){$('#login').classList.remove('hidden');$('#home').classList.add('hidden');$('#logout').classList.add('hidden');return}
+  $('#login').classList.add('hidden');$('#home').classList.remove('hidden');$('#logout').classList.remove('hidden');
+  $('#hello').textContent=`👋 ${me.name} (Roll ${me.roll})`;$('#roomname').textContent=me.room;
+  if(pend)showConfirm();
+}
+function showConfirm(){$('#confirm').classList.remove('hidden');msg('#hmsg','')}
+$('#logout').onclick=()=>{localStorage.removeItem('st');localStorage.removeItem('sme');tk=null;me=null;home()};
+
+async function stopScan(){try{await scanner.stop();scanner.clear()}catch{}$('#reader').classList.add('hidden')}
+$('#scan').onclick=async()=>{
+  $('#reader').classList.remove('hidden');scanner=new Html5Qrcode('reader');
+  try{
+    await scanner.start({facingMode:'environment'},{fps:10,qrbox:{width:240,height:240}},async txt=>{
+      let t=txt;try{t=new URL(txt).searchParams.get('t')||txt}catch{}
+      pend=t;await stopScan();showConfirm();
+    },()=>{});
+  }catch(e){$('#reader').classList.add('hidden');msg('#hmsg','Camera open hot nahi, permission dya: '+e)}
+};
+$('#submit').onclick=async()=>{
+  const b=$('#submit');b.disabled=true;b.textContent='📡 Location check hot ahe...';
+  try{
+    const c=await new Promise((ok,no)=>navigator.geolocation.getCurrentPosition(p=>ok(p.coords),()=>no(new Error('Location permission dya ani GPS on kara')),{enableHighAccuracy:true,timeout:15000,maximumAge:0}));
+    const d=await api('/attend',{token:pend,lat:c.latitude,lng:c.longitude,accuracy:c.accuracy});
+    msg('#hmsg',`🎉 Attendance lagli! Teacher pasun ${d.distance} m`,'ok');pend=null;$('#confirm').classList.add('hidden');
+  }catch(e){msg('#hmsg','❌ '+e.message)}
+  b.disabled=false;b.textContent='✅ Submit Attendance';
+};
+home();
+</script></body></html>
