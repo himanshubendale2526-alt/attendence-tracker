@@ -1,5 +1,5 @@
 const express = require('express');
-const Database = require('better-sqlite3');
+const { DatabaseSync } = require('node:sqlite');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const QRCode = require('qrcode');
@@ -8,7 +8,7 @@ const path = require('path');
 
 const SECRET = process.env.JWT_SECRET || 'dev-secret-change-me';
 const ADMIN_KEY = process.env.ADMIN_KEY || '';
-const db = new Database(process.env.DB_PATH || path.join(__dirname, 'data.db'));
+const db = new DatabaseSync(process.env.DB_PATH || path.join(__dirname, 'data.db'));
 db.exec(`
 CREATE TABLE IF NOT EXISTS teachers(id INTEGER PRIMARY KEY, username TEXT UNIQUE, password_hash TEXT);
 CREATE TABLE IF NOT EXISTS rooms(id INTEGER PRIMARY KEY, teacher_id INTEGER, name TEXT, code TEXT UNIQUE, roll_limit INTEGER, start_at INTEGER, end_at INTEGER, radius INTEGER, tlat REAL, tlng REAL, tacc REAL, tloc_at INTEGER);
